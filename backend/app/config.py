@@ -1,6 +1,10 @@
 import os
+from pathlib import Path
 from pydantic_settings import BaseSettings
 from typing import List
+
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+ENV_FILE = str(BACKEND_DIR / ".env")
 
 
 class Settings(BaseSettings):
@@ -11,13 +15,13 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     
     # Defaults to SQLite for seamless instant local runs, easily overridden with PostgreSQL
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./medicare.db")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{BACKEND_DIR / 'medicare.db'}")
     
     # Gemini API Key
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     
     # Upload storage directory
-    UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "uploads")
+    UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", str(BACKEND_DIR / "uploads"))
     
     # Demo credentials
     DEMO_USER_EMAIL: str = "patient@medicare.ai"
@@ -33,8 +37,7 @@ class Settings(BaseSettings):
 
     class Config:
         case_sensitive = True
-        env_file = ".env"
+        env_file = (ENV_FILE, ".env")
 
 
 settings = Settings()
-
