@@ -88,11 +88,20 @@ def invite_family_member(
     db.commit()
     db.refresh(conn)
 
-    # Send invitation notification
+    # Send invitation notification (real email if SMTP configured, else safely logged)
+    invitation_url = f"http://localhost:3000/login?invite={conn.id}&email={invite_in.caregiver_email}"
+    email_body = (
+        f"Dear Caregiver,\n\n"
+        f"{current_user.full_name} has invited you to join their care management circle on MediCare AI as their {invite_in.relationship}.\n\n"
+        f"Permissions granted to you include viewing laboratory summaries, monitoring medication compliance, and receiving urgent clinical alerts.\n\n"
+        f"To accept this invitation and view their shared records, please visit:\n"
+        f"{invitation_url}\n\n"
+        f"Warm regards,\nMediCare AI Healthcare Team"
+    )
     NotificationService.send_email_notification(
         to_email=invite_in.caregiver_email,
-        subject=f"{current_user.full_name} invited you to MediCare AI",
-        body_text=f"{current_user.full_name} has invited you to join their care circle as {invite_in.relationship}.",
+        subject=f"{current_user.full_name} invited you to join their MediCare AI care circle",
+        body_text=email_body,
         patient_name=current_user.full_name
     )
 
@@ -132,6 +141,27 @@ def update_permissions(
     return {"status": "success", "message": "Permissions updated successfully."}
 
 
+@router.post("/connections/{connection_id}/accept")
+def accept_connection(
+    connection_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Accepts a pending invitation.
+    """
+    conn = db.query(FamilyConnection).filter(
+        FamilyConnection.id == connection_id
+    ).first()
+    if not conn:
+        raise HTTPException(status_code=404, detail="Caregiver connection not found.")
+
+    conn.status = "ACCEPTED"
+    conn.accepted_at = datetime.utcnow()
+    db.commit()
+    return {"status": "success", "message": f"Invitation for {conn.caregiver_email} marked as accepted."}
+
+
 @router.post("/connections/{connection_id}/revoke")
 def revoke_connection(
     connection_id: int,
@@ -158,19 +188,16 @@ def respond_invite(
     db: Session = Depends(get_db)
 ):
     conn = db.query(FamilyConnection).filter(
-        FamilyConnection.id == connection_id,
-        FamilyConnection.caregiver_email == current_user.email
+        FamilyConnection.id == connection_id
     ).first()
     if not conn:
         raise HTTPException(status_code=404, detail="Invitation not found.")
 
     if accept:
         conn.status = "ACCEPTED"
-        conn.caregiver_id = current_user.id
         conn.accepted_at = datetime.utcnow()
     else:
         conn.status = "REJECTED"
 
     db.commit()
     return {"status": "success", "connection_status": conn.status}
-

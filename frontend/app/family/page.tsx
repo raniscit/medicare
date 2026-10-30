@@ -19,7 +19,9 @@ import {
   Copy,
   Clock,
   CheckCircle2,
-  KeyRound
+  KeyRound,
+  ExternalLink,
+  Sparkles
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { api } from "@/lib/api";
@@ -31,7 +33,8 @@ export default function FamilyPage() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [editingPermissionsConn, setEditingPermissionsConn] = useState<any | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [lastInvitedEmail, setLastInvitedEmail] = useState<string | null>(null);
 
   // Invite Form State
   const [inviteForm, setInviteForm] = useState({
@@ -70,6 +73,7 @@ export default function FamilyPage() {
     setActionLoading(true);
     try {
       await api.inviteFamily(inviteForm);
+      setLastInvitedEmail(inviteForm.caregiver_email);
       setShowInviteModal(false);
       setInviteForm({
         caregiver_email: "",
@@ -121,13 +125,24 @@ export default function FamilyPage() {
     }
   };
 
-  const handleCopyCode = (code: string) => {
-    navigator.clipboard.writeText(code);
-    setCopiedCode(code);
-    setTimeout(() => setCopiedCode(null), 2000);
+  const handleAcceptInvite = async (id: number) => {
+    try {
+      await api.acceptFamilyConnection(id);
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || "Failed to accept invitation");
+    }
   };
 
-  const activeCaregivers = connections.filter((c) => c.status === "ACTIVE");
+  const handleCopyInviteLink = (inv: any) => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+    const inviteUrl = `${origin}/login?invite=${inv.id}&email=${encodeURIComponent(inv.caregiver_email)}`;
+    navigator.clipboard.writeText(inviteUrl);
+    setCopiedId(inv.id);
+    setTimeout(() => setCopiedId(null), 2500);
+  };
+
+  const activeCaregivers = connections.filter((c) => c.status === "ACCEPTED" || c.status === "ACTIVE");
   const pendingInvites = connections.filter((c) => c.status === "PENDING");
 
   return (
@@ -158,6 +173,36 @@ export default function FamilyPage() {
           </button>
         </div>
 
+        {/* Email Delivery Explanation Banner */}
+        <div className="p-4 rounded-xl bg-sky-50/70 border border-sky-200 flex flex-col sm:flex-row sm:items-start justify-between gap-3 text-xs text-slate-700">
+          <div className="flex items-start gap-3">
+            <Mail className="w-5 h-5 text-sky-600 flex-shrink-0 mt-0.5" />
+            <div className="leading-relaxed">
+              <span className="font-bold text-slate-900">Email Invitation Dispatch: </span>
+              Invitations create active, permission-controlled records instantly. To deliver real automated emails to external inboxes (such as Gmail or Outlook), configure <code className="bg-sky-100 px-1.5 py-0.5 rounded text-sky-900 font-mono text-[11px]">SMTP_HOST</code>, <code className="bg-sky-100 px-1.5 py-0.5 rounded text-sky-900 font-mono text-[11px]">SMTP_USER</code>, and <code className="bg-sky-100 px-1.5 py-0.5 rounded text-sky-900 font-mono text-[11px]">SMTP_PASSWORD</code> in <code className="bg-sky-100 px-1.5 py-0.5 rounded text-sky-900 font-mono text-[11px]">backend/.env</code>.
+              You can also copy the direct invitation link or click <strong>Accept Invite</strong> below to test immediately!
+            </div>
+          </div>
+        </div>
+
+        {/* Success toast if recently invited */}
+        {lastInvitedEmail && (
+          <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs text-emerald-800">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span>
+                Invitation created for <strong>{lastInvitedEmail}</strong>. You can copy the invite link or accept it below.
+              </span>
+            </div>
+            <button
+              onClick={() => setLastInvitedEmail(null)}
+              className="text-emerald-700 hover:text-emerald-900 font-bold"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {/* Privacy & Consent Guarantee */}
         <div className="p-4 rounded-xl bg-teal-50/70 border border-teal-200 flex items-start gap-3">
           <ShieldCheck className="w-5 h-5 text-teal-700 flex-shrink-0 mt-0.5" />
@@ -168,6 +213,65 @@ export default function FamilyPage() {
             100% control and can revoke access immediately.
           </div>
         </div>
+
+        {/* Pending Invitations */}
+        {pendingInvites.length > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-amber-500" />
+                <h3 className="font-bold text-sm text-slate-900">
+                  Pending Invitations ({pendingInvites.length})
+                </h3>
+              </div>
+              <span className="text-xs text-slate-400">Waiting for caregiver to accept</span>
+            </div>
+
+            <div className="space-y-3">
+              {pendingInvites.map((inv) => (
+                <div
+                  key={inv.id}
+                  className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs"
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-slate-900">{inv.caregiver_email}</span>
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                        Pending
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Relationship: {inv.relationship} • Invited {formatDate(inv.invited_at)}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => handleCopyInviteLink(inv)}
+                      className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-[11px] font-semibold text-slate-700 flex items-center gap-1 shadow-2xs"
+                    >
+                      <Copy className="w-3.5 h-3.5 text-slate-500" />
+                      <span>{copiedId === inv.id ? "Link Copied!" : "Copy Invite Link"}</span>
+                    </button>
+                    <button
+                      onClick={() => handleAcceptInvite(inv.id)}
+                      className="px-3.5 py-1.5 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Accept Invite</span>
+                    </button>
+                    <button
+                      onClick={() => handleRevoke(inv.id)}
+                      className="px-3 py-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-[11px] font-semibold text-rose-600"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Active Caregivers & Members */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-4">
@@ -203,7 +307,7 @@ export default function FamilyPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <h4 className="text-sm font-extrabold text-slate-900">
-                            {c.caregiver?.full_name || c.caregiver_email}
+                            {c.caregiver_name || c.caregiver_email}
                           </h4>
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
                             Active
@@ -242,31 +346,31 @@ export default function FamilyPage() {
                         Granted Permissions:
                       </span>
                       <div className="flex flex-wrap gap-1.5">
-                        {c.permissions?.can_view_reports && (
+                        {c.permissions_json?.can_view_reports && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
                             <FileText className="w-3 h-3 text-teal-600" />
                             Reports
                           </span>
                         )}
-                        {c.permissions?.can_view_medications && (
+                        {c.permissions_json?.can_view_medications && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
                             <Pill className="w-3 h-3 text-teal-600" />
                             Medications
                           </span>
                         )}
-                        {c.permissions?.can_view_reminders && (
+                        {c.permissions_json?.can_view_reminders && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
                             <Bell className="w-3 h-3 text-teal-600" />
                             Reminders
                           </span>
                         )}
-                        {c.permissions?.can_view_trends && (
+                        {c.permissions_json?.can_view_trends && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
                             <TrendingUp className="w-3 h-3 text-teal-600" />
                             Trends
                           </span>
                         )}
-                        {c.permissions?.can_manage_reminders && (
+                        {c.permissions_json?.can_manage_reminders && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">
                             <CheckCircle2 className="w-3 h-3 text-amber-600" />
                             Manage Reminders
@@ -277,67 +381,13 @@ export default function FamilyPage() {
                   </div>
 
                   <div className="mt-4 pt-3 border-t border-slate-100 text-[10px] text-slate-400">
-                    Connected since: {formatDate(c.created_at)}
+                    Connected since: {formatDate(c.invited_at)}
                   </div>
                 </div>
               ))}
             </div>
           )}
         </div>
-
-        {/* Pending Invitations */}
-        {pendingInvites.length > 0 && (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-amber-500" />
-                <h3 className="font-bold text-sm text-slate-900">
-                  Pending Invitations ({pendingInvites.length})
-                </h3>
-              </div>
-              <span className="text-xs text-slate-400">Waiting for caregiver to accept</span>
-            </div>
-
-            <div className="space-y-3">
-              {pendingInvites.map((inv) => (
-                <div
-                  key={inv.id}
-                  className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-900">{inv.caregiver_email}</span>
-                      <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
-                        Pending
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Relationship: {inv.relationship} • Sent {formatDate(inv.created_at)}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {inv.invitation_code && (
-                      <button
-                        onClick={() => handleCopyCode(inv.invitation_code)}
-                        className="px-3 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-[11px] font-semibold text-slate-700 flex items-center gap-1"
-                      >
-                        <Copy className="w-3 h-3" />
-                        <span>{copiedCode === inv.invitation_code ? "Copied Code!" : "Copy Code"}</span>
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleRevoke(inv.id)}
-                      className="px-3 py-1 rounded-lg border border-rose-200 hover:bg-rose-50 text-[11px] font-semibold text-rose-600"
-                    >
-                      Cancel Invite
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Invite Modal */}
         {showInviteModal && (
@@ -500,12 +550,12 @@ export default function FamilyPage() {
                   <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700">
                     <input
                       type="checkbox"
-                      checked={editingPermissionsConn.permissions?.can_view_reports}
+                      checked={editingPermissionsConn.permissions_json?.can_view_reports}
                       onChange={(e) =>
                         setEditingPermissionsConn({
                           ...editingPermissionsConn,
-                          permissions: {
-                            ...editingPermissionsConn.permissions,
+                          permissions_json: {
+                            ...editingPermissionsConn.permissions_json,
                             can_view_reports: e.target.checked,
                           },
                         })
@@ -518,12 +568,12 @@ export default function FamilyPage() {
                   <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700">
                     <input
                       type="checkbox"
-                      checked={editingPermissionsConn.permissions?.can_view_medications}
+                      checked={editingPermissionsConn.permissions_json?.can_view_medications}
                       onChange={(e) =>
                         setEditingPermissionsConn({
                           ...editingPermissionsConn,
-                          permissions: {
-                            ...editingPermissionsConn.permissions,
+                          permissions_json: {
+                            ...editingPermissionsConn.permissions_json,
                             can_view_medications: e.target.checked,
                           },
                         })
@@ -536,12 +586,12 @@ export default function FamilyPage() {
                   <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700">
                     <input
                       type="checkbox"
-                      checked={editingPermissionsConn.permissions?.can_view_reminders}
+                      checked={editingPermissionsConn.permissions_json?.can_view_reminders}
                       onChange={(e) =>
                         setEditingPermissionsConn({
                           ...editingPermissionsConn,
-                          permissions: {
-                            ...editingPermissionsConn.permissions,
+                          permissions_json: {
+                            ...editingPermissionsConn.permissions_json,
                             can_view_reminders: e.target.checked,
                           },
                         })
@@ -554,12 +604,12 @@ export default function FamilyPage() {
                   <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700">
                     <input
                       type="checkbox"
-                      checked={editingPermissionsConn.permissions?.can_view_trends}
+                      checked={editingPermissionsConn.permissions_json?.can_view_trends}
                       onChange={(e) =>
                         setEditingPermissionsConn({
                           ...editingPermissionsConn,
-                          permissions: {
-                            ...editingPermissionsConn.permissions,
+                          permissions_json: {
+                            ...editingPermissionsConn.permissions_json,
                             can_view_trends: e.target.checked,
                           },
                         })
@@ -572,12 +622,12 @@ export default function FamilyPage() {
                   <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700 pt-2 border-t border-slate-200">
                     <input
                       type="checkbox"
-                      checked={editingPermissionsConn.permissions?.can_manage_reminders}
+                      checked={editingPermissionsConn.permissions_json?.can_manage_reminders}
                       onChange={(e) =>
                         setEditingPermissionsConn({
                           ...editingPermissionsConn,
-                          permissions: {
-                            ...editingPermissionsConn.permissions,
+                          permissions_json: {
+                            ...editingPermissionsConn.permissions_json,
                             can_manage_reminders: e.target.checked,
                           },
                         })
@@ -612,4 +662,3 @@ export default function FamilyPage() {
     </AppLayout>
   );
 }
-
