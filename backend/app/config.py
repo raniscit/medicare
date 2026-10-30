@@ -28,6 +28,14 @@ class Settings(BaseSettings):
     DEMO_USER_PASSWORD: str = "medicare123"
     DEMO_CAREGIVER_EMAIL: str = "caregiver@medicare.ai"
     
+    # SMTP Email Dispatcher (Supports Gmail, SendGrid, Mailgun, Amazon SES)
+    SMTP_HOST: str = os.getenv("SMTP_HOST", "")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USER: str = os.getenv("SMTP_USER", "")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
+    SMTP_FROM_EMAIL: str = os.getenv("SMTP_FROM_EMAIL", "noreply@medicare.ai")
+    SMTP_FROM_NAME: str = os.getenv("SMTP_FROM_NAME", "MediCare AI Health Portal")
+    
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
