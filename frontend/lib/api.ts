@@ -207,6 +207,8 @@ export const api = {
     }),
   revokeFamilyConnection: (id: number) =>
     apiRequest(`/family/connections/${id}/revoke`, { method: "POST" }),
+  acceptFamilyConnection: (id: number) =>
+    apiRequest(`/family/connections/${id}/accept`, { method: "POST" }),
 
   // Chat / Assistant
   getChatSessions: () => apiRequest("/chat/sessions"),
