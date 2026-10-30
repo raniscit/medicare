@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -23,7 +23,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { api } from "@/lib/api";
 import { formatDate, getStatusStyle } from "@/lib/utils";
 
-export default function ReportAnalysisPage() {
+function ReportAnalysisContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const documentId = searchParams.get("id");
@@ -405,3 +405,17 @@ export default function ReportAnalysisPage() {
   );
 }
 
+export default function ReportAnalysisPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm font-medium text-slate-600">Loading Report Analysis...</p>
+        </div>
+      </div>
+    }>
+      <ReportAnalysisContent />
+    </Suspense>
+  );
+}
