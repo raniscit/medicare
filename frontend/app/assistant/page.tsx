@@ -16,22 +16,31 @@ import {
   Clock,
   ExternalLink,
   ChevronRight,
-  Info
+  Info,
+  Calendar
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { api } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
 
+interface SourceCitation {
+  document_id?: number;
+  document_name: string;
+  document_type?: string;
+  report_date?: string;
+  page_number?: number;
+  excerpt?: string;
+  snippet?: string;
+}
+
 interface ChatMessage {
   id?: number;
   sender: "USER" | "ASSISTANT";
+  role?: string;
   message: string;
-  source_citations?: Array<{
-    document_id: number;
-    document_name: string;
-    page_number?: number;
-    snippet?: string;
-  }>;
+  content?: string;
+  source_citations?: SourceCitation[];
+  sources_json?: SourceCitation[];
   created_at?: string;
 }
 
@@ -87,7 +96,15 @@ function AssistantContent() {
   const loadSessionMessages = async (sessionId: number) => {
     try {
       const history = await api.getSessionMessages(sessionId);
-      setMessages(history || []);
+      const formatted = (history || []).map((m: any) => ({
+        id: m.id,
+        sender: (m.role === "assistant" ? "ASSISTANT" : "USER") as "USER" | "ASSISTANT",
+        role: m.role,
+        message: m.content || m.message || "",
+        source_citations: m.sources_json || m.source_citations || [],
+        created_at: m.created_at,
+      }));
+      setMessages(formatted);
     } catch (err) {
       console.error("Failed to load messages:", err);
     }
@@ -165,10 +182,13 @@ function AssistantContent() {
         setCurrentSessionId(res.session_id);
       }
 
+      const answerText = res.answer || res.message?.content || res.content || "Information retrieved.";
+      const citations = res.citations || res.sources || res.message?.sources_json || [];
+
       const botMsg: ChatMessage = {
         sender: "ASSISTANT",
-        message: res.answer,
-        source_citations: res.citations || [],
+        message: answerText,
+        source_citations: citations,
         created_at: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, botMsg]);
@@ -254,7 +274,7 @@ function AssistantContent() {
             </span>
           </div>
           <span className="text-[11px] font-bold text-teal-700 hidden md:inline">
-            Gemini RAG + Vector Retrieval
+            Gemini API + Semantic RAG Retrieval
           </span>
         </div>
 
@@ -330,7 +350,10 @@ function AssistantContent() {
                 </div>
               ) : (
                 messages.map((msg, index) => {
-                  const isUser = msg.sender === "USER";
+                  const isUser = msg.sender === "USER" || msg.role === "user";
+                  const text = msg.message || msg.content || "";
+                  const citations = msg.source_citations || msg.sources_json || [];
+
                   return (
                     <div
                       key={index}
@@ -349,24 +372,28 @@ function AssistantContent() {
                             : "bg-slate-50 text-slate-800 border border-slate-200/80 rounded-tl-none"
                         }`}
                       >
-                        <div className="whitespace-pre-wrap font-medium">{msg.message}</div>
+                        <div className="whitespace-pre-wrap font-medium">{text}</div>
 
                         {/* Citations / Sources for Assistant Responses */}
-                        {!isUser && msg.source_citations && msg.source_citations.length > 0 && (
+                        {!isUser && citations.length > 0 && (
                           <div className="mt-3 pt-3 border-t border-slate-200/80 space-y-1.5">
                             <span className="text-[10px] font-bold uppercase tracking-wider text-teal-800 block">
-                              Source Citations ({msg.source_citations.length}):
+                              Source Citations ({citations.length}):
                             </span>
                             <div className="flex flex-wrap gap-1.5">
-                              {msg.source_citations.map((c, ci) => (
+                              {citations.map((c: any, ci: number) => (
                                 <div
                                   key={ci}
-                                  className="inline-flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-slate-200 text-[11px] text-slate-700 shadow-2xs font-semibold"
+                                  className="inline-flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-slate-200 text-[11px] text-slate-700 shadow-2xs font-semibold"
+                                  title={c.excerpt || c.snippet || ""}
                                 >
-                                  <FileText className="w-3 h-3 text-teal-600" />
+                                  <FileText className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" />
                                   <span>{c.document_name}</span>
+                                  {c.report_date && (
+                                    <span className="text-slate-400 font-normal">({c.report_date})</span>
+                                  )}
                                   {c.page_number && (
-                                    <span className="text-slate-400">p.{c.page_number}</span>
+                                    <span className="text-teal-700 font-mono text-[10px]">p.{c.page_number}</span>
                                   )}
                                 </div>
                               ))}
@@ -392,7 +419,7 @@ function AssistantContent() {
                   </div>
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs text-slate-600 flex items-center gap-2">
                     <span className="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
-                    <span>Searching medical records & formulating clinical answer...</span>
+                    <span>Searching medical records & formulating clinical answer with Gemini...</span>
                   </div>
                 </div>
               )}
@@ -471,4 +498,3 @@ export default function AssistantPage() {
     </Suspense>
   );
 }
-

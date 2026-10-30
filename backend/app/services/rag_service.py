@@ -248,22 +248,35 @@ class RAGService:
             try:
                 from google import genai
                 client = genai.Client(api_key=settings.GEMINI_API_KEY)
-                prompt = f"{system_instruction}\n\nPATIENT CONTEXT:\n{full_context}\n\nUSER INQUIRY: {query}"
-                response = client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=prompt
+                prompt = (
+                    f"{system_instruction}\n\n"
+                    f"PATIENT CONTEXT (Medical Records and Prescriptions):\n{full_context}\n\n"
+                    f"PATIENT QUESTION: {query}\n\n"
+                    f"Please answer clearly in simple terms, referencing their documents where applicable."
                 )
-                if response and response.text:
-                    response_text = response.text
-                    gemini_success = True
-            except Exception as e:
+                candidate_models = [
+                    "models/gemini-3.8-flash",
+                    "models/gemini-3.5-flash-lite",
+                    "models/gemini-flash-latest"
+                ]
+                for cand in candidate_models:
+                    try:
+                        response = client.models.generate_content(
+                            model=cand,
+                            contents=prompt
+                        )
+                        if response and response.text:
+                            response_text = response.text
+                            gemini_success = True
+                            break
+                    except Exception:
+                        continue
+            except Exception:
                 gemini_success = False
 
         if not gemini_success:
-            # High-quality medical context-aware response generator
             response_text = cls._generate_intelligent_fallback_response(query, chunks, abnormals, meds, language)
 
-        # Save assistant message
         assistant_msg = ChatMessage(
             session_id=session_id,
             role="assistant",
@@ -277,6 +290,9 @@ class RAGService:
 
         return {
             "session_id": session_id,
+            "answer": response_text,
+            "citations": sources,
+            "sources": sources,
             "message": {
                 "id": assistant_msg.id,
                 "session_id": session_id,
