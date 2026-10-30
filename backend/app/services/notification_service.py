@@ -63,7 +63,12 @@ class NotificationService:
                     server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=12)
                     server.starttls()
                 
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                smtp_pwd = (settings.SMTP_PASSWORD or "").replace(" ", "").strip()
+                try:
+                    server.login(settings.SMTP_USER, smtp_pwd)
+                except Exception:
+                    # Fallback to raw password if provider requires raw spaces
+                    server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
                 server.sendmail(settings.SMTP_FROM_EMAIL, [to_email], msg.as_string())
                 server.quit()
                 logger.info(f"✅ Real email successfully delivered via SMTP to {to_email}")

@@ -75,6 +75,7 @@ function AssistantContent() {
 
   // Load chat sessions
   const loadSessions = async () => {
+
     setLoading(true);
     try {
       const list = await api.getChatSessions();
@@ -239,17 +240,15 @@ function AssistantContent() {
               <Languages className="w-3.5 h-3.5 text-slate-500 ml-1.5" />
               <button
                 onClick={() => setLanguage("en")}
-                className={`px-2.5 py-1 rounded-lg transition-colors ${
-                  language === "en" ? "bg-white text-teal-800 shadow-xs font-bold" : "text-slate-600"
-                }`}
+                className={`px-2.5 py-1 rounded-lg transition-colors ${language === "en" ? "bg-white text-teal-800 shadow-xs font-bold" : "text-slate-600"
+                  }`}
               >
                 English
               </button>
               <button
                 onClick={() => setLanguage("hi")}
-                className={`px-2.5 py-1 rounded-lg transition-colors ${
-                  language === "hi" ? "bg-white text-teal-800 shadow-xs font-bold" : "text-slate-600"
-                }`}
+                className={`px-2.5 py-1 rounded-lg transition-colors ${language === "hi" ? "bg-white text-teal-800 shadow-xs font-bold" : "text-slate-600"
+                  }`}
               >
                 हिन्दी (Hindi)
               </button>
@@ -295,11 +294,10 @@ function AssistantContent() {
                 <div
                   key={sess.id}
                   onClick={() => handleSelectSession(sess.id)}
-                  className={`group w-full p-2.5 rounded-xl text-xs text-left flex items-center justify-between cursor-pointer transition-all ${
-                    currentSessionId === sess.id
+                  className={`group w-full p-2.5 rounded-xl text-xs text-left flex items-center justify-between cursor-pointer transition-all ${currentSessionId === sess.id
                       ? "bg-teal-50/80 border border-teal-200 text-teal-900 font-bold"
                       : "text-slate-700 hover:bg-slate-50 border border-transparent"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-2 truncate pr-1">
                     <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 text-slate-400 group-hover:text-teal-600" />
@@ -367,11 +365,10 @@ function AssistantContent() {
                       )}
 
                       <div
-                        className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-4 text-xs leading-relaxed ${
-                          isUser
+                        className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-4 text-xs leading-relaxed ${isUser
                             ? "bg-teal-700 text-white rounded-tr-none shadow-xs"
                             : "bg-slate-50 text-slate-800 border border-slate-200/80 rounded-tl-none"
-                        }`}
+                          }`}
                       >
                         <div className="whitespace-pre-wrap font-medium">{text}</div>
 
