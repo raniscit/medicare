@@ -1,6 +1,34 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== "undefined" ? "/api" : "http://127.0.0.1:8000/api");
 
-function getToken(): string | null {
+let initTokenPromise: Promise<string | null> | null = null;
+
+export async function getOrEnsureToken(): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  let token = localStorage.getItem("medicare_token");
+  if (!token) {
+    if (!initTokenPromise) {
+      initTokenPromise = fetch(`${API_BASE_URL}/auth/demo-login`, { method: "POST" })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data && data.access_token) {
+            localStorage.setItem("medicare_token", data.access_token);
+            return data.access_token as string;
+          }
+          return null;
+        })
+        .catch(() => null)
+        .finally(() => {
+          initTokenPromise = null;
+        });
+    }
+    token = await initTokenPromise;
+  }
+  return token;
+}
+
+export function getToken(): string | null {
   if (typeof window !== "undefined") {
     return localStorage.getItem("medicare_token");
   }
@@ -11,7 +39,7 @@ export async function apiRequest<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = getToken();
+  let token = await getOrEnsureToken();
   const headers = new Headers(options.headers || {});
 
   if (token && !headers.has("Authorization")) {
@@ -25,10 +53,23 @@ export async function apiRequest<T = any>(
 
   const url = `${API_BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
 
-  const response = await fetch(url, {
+  let response = await fetch(url, {
     ...options,
     headers,
   });
+
+  // If unauthorized and not a login request, try auto-refreshing demo session once
+  if (response.status === 401 && !endpoint.includes("/auth/login") && typeof window !== "undefined") {
+    localStorage.removeItem("medicare_token");
+    token = await getOrEnsureToken();
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+      response = await fetch(url, {
+        ...options,
+        headers,
+      });
+    }
+  }
 
   if (!response.ok) {
     let errorDetail = "An unexpected error occurred";
@@ -183,4 +224,3 @@ export const api = {
   deleteChatSession: (sessionId: number) =>
     apiRequest(`/chat/sessions/${sessionId}`, { method: "DELETE" }),
 };
-

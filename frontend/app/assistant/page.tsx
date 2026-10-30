@@ -134,7 +134,7 @@ function AssistantContent() {
         },
       ]);
     } catch (err: any) {
-      alert("Failed to create chat session: " + err.message);
+      console.warn("Failed to create chat session:", err);
     }
   };
 
@@ -199,8 +199,9 @@ function AssistantContent() {
     } catch (err: any) {
       const errorMsg: ChatMessage = {
         sender: "ASSISTANT",
-        message:
-          "I encountered an error retrieving your records. Please ensure your query is clear or check the server status.",
+        message: err.message
+          ? `Error: ${err.message}`
+          : "I encountered an error retrieving your records. Please ensure your query is clear or check the server status.",
       };
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
@@ -419,7 +420,7 @@ function AssistantContent() {
                   </div>
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs text-slate-600 flex items-center gap-2">
                     <span className="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
-                    <span>Searching medical records & formulating clinical answer with Gemini...</span>
+                    <span>Analyzing your medical records with Gemini AI...</span>
                   </div>
                 </div>
               )}

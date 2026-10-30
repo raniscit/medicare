@@ -255,9 +255,9 @@ class RAGService:
                     f"Please answer clearly in simple terms, referencing their documents where applicable."
                 )
                 candidate_models = [
-                    "models/gemini-3.8-flash",
                     "models/gemini-3.5-flash-lite",
-                    "models/gemini-flash-latest"
+                    "models/gemini-flash-latest",
+                    "models/gemini-3.8-flash"
                 ]
                 for cand in candidate_models:
                     try:
