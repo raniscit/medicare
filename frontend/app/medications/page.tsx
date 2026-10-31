@@ -162,7 +162,7 @@ export default function MedicationsPage() {
                 Medication & Precaution Management
               </h1>
               <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-teal-100 text-teal-800">
-                Feature 3
+                Daily Regimen & Prescriptions
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-1">

@@ -85,7 +85,7 @@ function ReportAnalysisContent() {
                   AI Report Analyzer
                 </h1>
                 <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-teal-100 text-teal-800">
-                  Feature 1 & 2
+                  Document Breakdown & AI Summaries
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
