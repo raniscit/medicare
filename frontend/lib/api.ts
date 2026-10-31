@@ -1,14 +1,13 @@
 function resolveApiBaseUrl(): string {
-  const envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
-  if (envUrl) {
-    const stripped = envUrl.replace(/\/+$/, "");
-    if (stripped.endsWith("/api")) {
-      return stripped;
-    }
-    return `${stripped}/api`;
+  let url = process.env.NEXT_PUBLIC_API_URL;
+  if (!url) {
+    return typeof window !== "undefined" ? "/api" : "http://127.0.0.1:8000/api";
   }
-  // Local and fallback: when deployed without env variable, relative /api uses Next.js rewrite proxy
-  return typeof window !== "undefined" ? "/api" : "http://127.0.0.1:8000/api";
+  url = url.trim().replace(/\/+$/, "");
+  if (!url.endsWith("/api")) {
+    url = `${url}/api`;
+  }
+  return url;
 }
 
 const API_BASE_URL = resolveApiBaseUrl();
@@ -64,10 +63,26 @@ export async function apiRequest<T = any>(
 
   const url = `${API_BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
 
-  let response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+    });
+  } catch (err: any) {
+    // Retry once if Render free tier is waking up
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      response = await fetch(url, {
+        ...options,
+        headers,
+      });
+    } catch {
+      throw new Error(
+        "Could not connect to the backend server. If this is a free Render instance, it may be waking up from sleep (takes ~45s). Please refresh in a moment."
+      );
+    }
+  }
 
   // If unauthorized and not a login request, try auto-refreshing demo session once
   if (response.status === 401 && !endpoint.includes("/auth/login") && typeof window !== "undefined") {

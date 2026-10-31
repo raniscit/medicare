@@ -16,7 +16,6 @@ services:
         generateValue: true
       - key: DATABASE_URL
         value: "sqlite:///./medicare.db"
-        
       - key: GEMINI_API_KEY
         sync: false
       - key: SMTP_HOST
