@@ -1,4 +1,9 @@
-from pydantic import BaseModel, EmailStr, Field, model_validator
+from pydantic import BaseModel, Field, model_validator
+try:
+    import email_validator  # noqa: F401
+    from pydantic import EmailStr
+except (ImportError, Exception):
+    EmailStr = str  # Fallback so server never crashes if email-validator is missing
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
