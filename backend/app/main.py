@@ -34,10 +34,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS configuration
+# CORS configuration - dynamically matches Vercel deployments, custom domains, and localhost
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For flexible local development
+    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
