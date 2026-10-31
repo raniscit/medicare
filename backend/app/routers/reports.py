@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.entities import User, MedicalDocument, ReportSummary
 from app.schemas.schemas import ReportSummaryResponse
-from app.utils.dependencies import get_current_active_user
+from app.utils.dependencies import get_current_active_user, get_effective_patient_context, check_patient_permission, check_patient_access
 
 router = APIRouter(prefix="/reports", tags=["Report Summaries"])
 
@@ -11,13 +11,17 @@ router = APIRouter(prefix="/reports", tags=["Report Summaries"])
 @router.get("/{document_id}/summary", response_model=ReportSummaryResponse)
 def get_report_summary(
     document_id: int,
+    request: Request,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    doc = db.query(MedicalDocument).filter(
-        MedicalDocument.id == document_id,
-        MedicalDocument.patient_id == current_user.id
-    ).first()
+    doc = db.query(MedicalDocument).filter(MedicalDocument.id == document_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Report document not found.")
+    check_patient_access(doc.patient_id, current_user, db)
+    context = get_effective_patient_context(request, current_user, db)
+    if not check_patient_permission("can_view_reports", context):
+        raise HTTPException(status_code=403, detail="You do not have permission to view report summaries.")
     if not doc:
         raise HTTPException(status_code=404, detail="Report document not found.")
 

@@ -4,10 +4,11 @@ from sqlalchemy.orm import Session
 from datetime import timedelta
 from app.database import get_db
 from app.config import settings
-from app.models.entities import User, PatientProfile
+from app.models.entities import User, PatientProfile, FamilyConnection
 from app.schemas.schemas import (
+    InvitationValidateResponse, CreatePasswordFromInviteRequest, CreatePasswordFromInviteResponse,
     UserCreate, UserResponse, UserLogin, TokenResponse,
-    PatientProfileBase, PatientProfileResponse
+    PatientProfileBase, PatientProfileResponse, ConnectedPatientInfo
 )
 from app.utils.security import verify_password, get_password_hash, create_access_token
 from app.utils.dependencies import get_current_user, get_current_active_user
@@ -107,8 +108,33 @@ def demo_login(db: Session = Depends(get_db)):
 
 
 @router.get("/me", response_model=UserResponse)
-def get_me(current_user: User = Depends(get_current_active_user)):
-    return current_user
+def get_me(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    connections = db.query(FamilyConnection).filter(
+        (FamilyConnection.caregiver_id == current_user.id) |
+        (FamilyConnection.caregiver_email.ilike(current_user.email)),
+        FamilyConnection.status == "ACCEPTED"
+    ).all()
+
+    connected_patients = []
+    for c in connections:
+        patient = db.query(User).filter(User.id == c.patient_id).first()
+        if patient:
+            connected_patients.append(ConnectedPatientInfo(
+                patient_id=patient.id,
+                patient_name=patient.full_name or "Patient",
+                patient_email=patient.email,
+                relationship=c.relationship,
+                permissions=c.permissions_json or {},
+                connection_id=c.id
+            ))
+
+    res = UserResponse.from_orm(current_user)
+    res.connected_patients = connected_patients
+    res.active_patient_id = connected_patients[0].patient_id if connected_patients else None
+    return res
 
 
 @router.put("/profile", response_model=PatientProfileResponse)
@@ -129,3 +155,21 @@ def update_profile(
     db.refresh(profile)
     return profile
 
+
+@router.get("/validate-invitation", response_model=InvitationValidateResponse)
+def validate_invitation_alias(
+    token: str,
+    db: Session = Depends(get_db)
+):
+    from app.routers.family import validate_invitation
+    return validate_invitation(token=token, db=db)
+
+
+@router.post("/create-password", response_model=CreatePasswordFromInviteResponse)
+@router.post("/create-password-from-invite", response_model=CreatePasswordFromInviteResponse)
+def create_password_alias(
+    payload: CreatePasswordFromInviteRequest,
+    db: Session = Depends(get_db)
+):
+    from app.routers.family import create_password_from_invite
+    return create_password_from_invite(payload=payload, db=db)

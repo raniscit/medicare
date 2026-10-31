@@ -16,6 +16,15 @@ interface UserProfile {
   known_allergies?: string;
 }
 
+export interface ConnectedPatient {
+  patient_id: number;
+  patient_name: string;
+  patient_email: string;
+  relationship: string;
+  permissions: Record<string, boolean>;
+  connection_id: number;
+}
+
 export interface User {
   id: number;
   email: string;
@@ -23,6 +32,8 @@ export interface User {
   role: string;
   is_active: boolean;
   profile?: UserProfile;
+  connected_patients?: ConnectedPatient[];
+  active_patient_id?: number | null;
 }
 
 interface AuthContextType {

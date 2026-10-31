@@ -214,8 +214,13 @@ class FamilyConnection(Base):
     status = Column(String(50), default="PENDING")           # PENDING, ACCEPTED, REJECTED, REVOKED
     # Permissions json: {"can_view_reports": true, "can_view_medications": true, "can_view_reminders": true, "can_receive_alerts": true}
     permissions_json = Column(JSON, default=dict)
+    caregiver_name = Column(String(255), nullable=True)
     invited_at = Column(DateTime, default=datetime.utcnow)
     accepted_at = Column(DateTime, nullable=True)
+    invitation_token = Column(String(255), unique=True, nullable=True, index=True)
+    token_expires_at = Column(DateTime, nullable=True)
+    is_used = Column(Boolean, default=False)
+    redirect_url = Column(String(500), nullable=True, default='/dashboard')
 
 
 class ChatSession(Base):

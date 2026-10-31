@@ -1,12 +1,12 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.entities import User, ChatSession, ChatMessage
 from app.schemas.schemas import (
     ChatSessionResponse, ChatMessageResponse, ChatQueryRequest
 )
-from app.utils.dependencies import get_current_active_user
+from app.utils.dependencies import get_current_active_user, get_effective_patient_context, check_patient_permission, check_patient_access
 from app.services.rag_service import RAGService
 
 router = APIRouter(prefix="/chat", tags=["AI Health Assistant"])
@@ -14,11 +14,13 @@ router = APIRouter(prefix="/chat", tags=["AI Health Assistant"])
 
 @router.get("/sessions", response_model=List[ChatSessionResponse])
 def list_sessions(
+    request: Request,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
+    context = get_effective_patient_context(request, current_user, db)
     sessions = db.query(ChatSession).filter(
-        ChatSession.patient_id == current_user.id
+        ChatSession.patient_id == context["patient_id"]
     ).order_by(ChatSession.updated_at.desc()).all()
     return sessions
 
@@ -63,9 +65,21 @@ def get_session_messages(
 @router.post("/query")
 def submit_query(
     query_in: ChatQueryRequest,
+    request: Request,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
+    context = get_effective_patient_context(request, current_user, db)
+    result = RAGService.answer_query(
+        db=db,
+        patient_id=context["patient_id"],
+        query=query_in.message,
+        session_id=query_in.session_id,
+        language=query_in.language
+    )
+    return result
+
+def _unused_submit_query():
     """
     RAG Pipeline Endpoint:
     Processes user health question against their uploaded medical records and clinical history.
