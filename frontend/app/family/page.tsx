@@ -156,7 +156,7 @@ export default function FamilyPage() {
                 Family & Caregiver Collaboration
               </h1>
               <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-teal-100 text-teal-800">
-                Feature 6
+                Care Circle
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-1">
@@ -179,8 +179,7 @@ export default function FamilyPage() {
             <Mail className="w-5 h-5 text-sky-600 flex-shrink-0 mt-0.5" />
             <div className="leading-relaxed">
               <span className="font-bold text-slate-900">Email Invitation Dispatch: </span>
-              Invitations create active, permission-controlled records instantly. To deliver real automated emails to external inboxes (such as Gmail or Outlook), configure <code className="bg-sky-100 px-1.5 py-0.5 rounded text-sky-900 font-mono text-[11px]">SMTP_HOST</code>, <code className="bg-sky-100 px-1.5 py-0.5 rounded text-sky-900 font-mono text-[11px]">SMTP_USER</code>, and <code className="bg-sky-100 px-1.5 py-0.5 rounded text-sky-900 font-mono text-[11px]">SMTP_PASSWORD</code> in <code className="bg-sky-100 px-1.5 py-0.5 rounded text-sky-900 font-mono text-[11px]">backend/.env</code>.
-              You can also copy the direct invitation link or click <strong>Accept Invite</strong> below to test immediately!
+              Invitations grant secure, permission-controlled access to your trusted caregivers. Automated invitation emails are delivered directly to their inbox with one-click verification. You can also copy the direct invitation link or click <strong>Accept Invite</strong> below for instant activation.
             </div>
           </div>
         </div>

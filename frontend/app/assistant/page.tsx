@@ -225,7 +225,7 @@ function AssistantContent() {
                   Interactive AI Health Assistant
                 </h1>
                 <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-teal-100 text-teal-800">
-                  Feature 7 (RAG)
+                  AI Clinical Insights
                 </span>
               </div>
               <p className="text-xs text-slate-500">
@@ -274,7 +274,7 @@ function AssistantContent() {
             </span>
           </div>
           <span className="text-[11px] font-bold text-teal-700 hidden md:inline">
-            Gemini API + Semantic RAG Retrieval
+            Verified Document Grounding
           </span>
         </div>
 
