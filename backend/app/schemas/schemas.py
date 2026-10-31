@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
@@ -272,6 +272,16 @@ class ReminderBase(BaseModel):
     status: str = "PENDING"            # PENDING, COMPLETED, CANCELLED
     is_confirmed: bool = True
 
+    @model_validator(mode="before")
+    @classmethod
+    def handle_aliases(cls, data: Any):
+        if isinstance(data, dict):
+            if "reminder_time" not in data and "scheduled_time" in data:
+                data["reminder_time"] = data["scheduled_time"]
+            if "description" not in data and "notes" in data:
+                data["description"] = data["notes"]
+        return data
+
 
 class ReminderCreate(ReminderBase):
     document_id: Optional[int] = None
@@ -294,9 +304,19 @@ class ReminderResponse(ReminderBase):
     document_id: Optional[int] = None
     extracted_from_doc: bool
     created_at: datetime
+    scheduled_time: Optional[datetime] = None
+    notes: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+    @model_validator(mode="after")
+    def populate_aliases(self):
+        if self.scheduled_time is None:
+            self.scheduled_time = self.reminder_time
+        if self.notes is None:
+            self.notes = self.description
+        return self
 
 
 class AppointmentBase(BaseModel):
@@ -307,6 +327,18 @@ class AppointmentBase(BaseModel):
     reason: Optional[str] = None
     status: str = "SCHEDULED"  # SCHEDULED, COMPLETED, CANCELLED
     notes: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def handle_aliases(cls, data: Any):
+        if isinstance(data, dict):
+            if "appointment_date" not in data and "appointment_time" in data:
+                data["appointment_date"] = data["appointment_time"]
+            if "hospital_or_clinic" not in data and "clinic_or_hospital" in data:
+                data["hospital_or_clinic"] = data["clinic_or_hospital"]
+            if "notes" not in data and "instructions" in data:
+                data["notes"] = data["instructions"]
+        return data
 
 
 class AppointmentCreate(AppointmentBase):
@@ -328,9 +360,22 @@ class AppointmentResponse(AppointmentBase):
     patient_id: int
     document_id: Optional[int] = None
     created_at: datetime
+    appointment_time: Optional[datetime] = None
+    clinic_or_hospital: Optional[str] = None
+    instructions: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+    @model_validator(mode="after")
+    def populate_aliases(self):
+        if self.appointment_time is None:
+            self.appointment_time = self.appointment_date
+        if self.clinic_or_hospital is None:
+            self.clinic_or_hospital = self.hospital_or_clinic
+        if self.instructions is None:
+            self.instructions = self.notes
+        return self
 
 
 # --- Family & Caregiver Schemas ---

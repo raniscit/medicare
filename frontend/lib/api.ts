@@ -75,7 +75,20 @@ export async function apiRequest<T = any>(
     let errorDetail = "An unexpected error occurred";
     try {
       const errJson = await response.json();
-      errorDetail = errJson.detail || errJson.message || JSON.stringify(errJson);
+      if (Array.isArray(errJson.detail)) {
+        errorDetail = errJson.detail
+          .map((item: any) => {
+            const loc = Array.isArray(item.loc) ? item.loc[item.loc.length - 1] : "field";
+            return `${loc}: ${item.msg}`;
+          })
+          .join(" | ");
+      } else if (typeof errJson.detail === "string") {
+        errorDetail = errJson.detail;
+      } else if (errJson.message) {
+        errorDetail = errJson.message;
+      } else {
+        errorDetail = JSON.stringify(errJson);
+      }
     } catch {
       errorDetail = await response.text();
     }
@@ -166,11 +179,23 @@ export const api = {
   // Reminders & Appointments
   getReminders: (status?: string) =>
     apiRequest(status ? `/reminders?status_filter=${status}` : "/reminders"),
-  createReminder: (data: any) =>
-    apiRequest("/reminders", {
+  createReminder: (data: any) => {
+    const payload = {
+      title: data.title,
+      description: data.description || data.notes || "",
+      reminder_type: data.reminder_type || "MEDICATION",
+      reminder_time: data.reminder_time || data.scheduled_time,
+      recurrence: data.recurrence || "NONE",
+      status: data.status || "ACTIVE",
+      is_confirmed: data.is_confirmed !== undefined ? data.is_confirmed : true,
+      document_id: data.document_id || null,
+      extracted_from_doc: !!data.extracted_from_doc,
+    };
+    return apiRequest("/reminders", {
       method: "POST",
-      body: JSON.stringify(data),
-    }),
+      body: JSON.stringify(payload),
+    });
+  },
   updateReminder: (id: number, data: any) =>
     apiRequest(`/reminders/${id}`, {
       method: "PUT",
@@ -185,11 +210,22 @@ export const api = {
   getNotifications: () => apiRequest("/reminders/notifications"),
 
   getAppointments: () => apiRequest("/appointments"),
-  createAppointment: (data: any) =>
-    apiRequest("/appointments", {
+  createAppointment: (data: any) => {
+    const payload = {
+      doctor_name: data.doctor_name,
+      specialty: data.specialty || "General Physician",
+      hospital_or_clinic: data.hospital_or_clinic || data.clinic_or_hospital || "",
+      appointment_date: data.appointment_date || data.appointment_time,
+      reason: data.reason || "",
+      notes: data.notes || data.instructions || "",
+      status: data.status || "SCHEDULED",
+      document_id: data.document_id || null,
+    };
+    return apiRequest("/appointments", {
       method: "POST",
-      body: JSON.stringify(data),
-    }),
+      body: JSON.stringify(payload),
+    });
+  },
   deleteAppointment: (id: number) =>
     apiRequest(`/appointments/${id}`, { method: "DELETE" }),
 
