@@ -9,13 +9,18 @@ node_modules/
 
 # Build files
 .next/
-out/
-dist/
-build/
+**/out/
+**/dist/
+**/build/
 
 # Python
 __pycache__/
+**/__pycache__/
+*.pyc
+**/*.pyc
 .venv/
 venv/
 *.db
+**/*.db
 uploads/
+**/uploads/

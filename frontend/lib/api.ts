@@ -1,6 +1,17 @@
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  (typeof window !== "undefined" ? "/api" : "http://127.0.0.1:8000/api");
+function resolveApiBaseUrl(): string {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (envUrl) {
+    const stripped = envUrl.replace(/\/+$/, "");
+    if (stripped.endsWith("/api")) {
+      return stripped;
+    }
+    return `${stripped}/api`;
+  }
+  // Local and fallback: when deployed without env variable, relative /api uses Next.js rewrite proxy
+  return typeof window !== "undefined" ? "/api" : "http://127.0.0.1:8000/api";
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 let initTokenPromise: Promise<string | null> | null = null;
 
