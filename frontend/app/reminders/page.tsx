@@ -255,7 +255,7 @@ export default function RemindersPage() {
                 Appointments & Smart Reminders
               </h1>
               <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-teal-100 text-teal-800">
-                Feature 4
+                Schedule & Alerts
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-1">
@@ -346,7 +346,7 @@ export default function RemindersPage() {
               </div>
               <div>
                 <h4 className="text-xs font-bold text-slate-900">Email Reminders</h4>
-                <p className="text-[11px] text-slate-500">Sent via configured Gmail SMTP</p>
+                <p className="text-[11px] text-slate-500">Automated dispatch to verified email</p>
               </div>
             </div>
             <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
@@ -429,7 +429,7 @@ export default function RemindersPage() {
         )}
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-slate-200 gap-6">
+        <div className="flex border-b border-slate-200 gap-4 sm:gap-6 overflow-x-auto whitespace-nowrap pb-0.5">
           <button
             onClick={() => setActiveTab("reminders")}
             className={`pb-3 text-xs font-bold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${

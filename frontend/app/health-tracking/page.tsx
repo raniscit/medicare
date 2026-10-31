@@ -131,7 +131,7 @@ export default function HealthTrackingPage() {
                 Health Tracking & Serial Progress
               </h1>
               <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-teal-100 text-teal-800">
-                Feature 5
+                Biomarker Analytics
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-1">
