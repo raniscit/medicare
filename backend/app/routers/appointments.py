@@ -1,21 +1,25 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.entities import User, Appointment
 from app.schemas.schemas import AppointmentCreate, AppointmentUpdate, AppointmentResponse
-from app.utils.dependencies import get_current_active_user
+from app.utils.dependencies import get_current_active_user, get_effective_patient_context, check_patient_permission, check_patient_access
 
 router = APIRouter(prefix="/appointments", tags=["Appointments"])
 
 
 @router.get("", response_model=List[AppointmentResponse])
 def list_appointments(
+    request: Request,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
+    context = get_effective_patient_context(request, current_user, db)
+    if not check_patient_permission("can_view_reminders", context):
+        return []
     return db.query(Appointment).filter(
-        Appointment.patient_id == current_user.id
+        Appointment.patient_id == context["patient_id"]
     ).order_by(Appointment.appointment_date.asc()).all()
 
 

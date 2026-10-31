@@ -271,6 +271,15 @@ export const api = {
     apiRequest(`/family/connections/${id}/revoke`, { method: "POST" }),
   acceptFamilyConnection: (id: number) =>
     apiRequest(`/family/connections/${id}/accept`, { method: "POST" }),
+  resendFamilyInvite: (connectionId: number) =>
+    apiRequest(`/family/connections/${connectionId}/resend`, { method: "POST" }),
+  validateInvitationToken: (token: string) =>
+    apiRequest(`/family/invitations/validate?token=${encodeURIComponent(token)}`),
+  createPasswordFromInvite: (data: { token: string; password: string; full_name?: string }) =>
+    apiRequest("/family/invitations/create-password", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 
   // Chat / Assistant
   getChatSessions: () => apiRequest("/chat/sessions"),

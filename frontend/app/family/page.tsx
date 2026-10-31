@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   Users,
   UserPlus,
@@ -21,7 +22,8 @@ import {
   CheckCircle2,
   KeyRound,
   ExternalLink,
-  Sparkles
+  Sparkles,
+  RotateCw
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { api } from "@/lib/api";
@@ -136,10 +138,25 @@ export default function FamilyPage() {
 
   const handleCopyInviteLink = (inv: any) => {
     const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
-    const inviteUrl = `${origin}/login?invite=${inv.id}&email=${encodeURIComponent(inv.caregiver_email)}`;
+    const inviteUrl = inv.invitation_url || (inv.invitation_token
+      ? `${origin}/create-password?token=${inv.invitation_token}`
+      : `${origin}/create-password?token=${inv.id}`);
     navigator.clipboard.writeText(inviteUrl);
     setCopiedId(inv.id);
     setTimeout(() => setCopiedId(null), 2500);
+  };
+
+  const handleResendInvite = async (id: number) => {
+    setActionLoading(true);
+    try {
+      await api.resendFamilyInvite(id);
+      alert("Fresh invitation link generated and email sent successfully!");
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || "Failed to resend invitation");
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const activeCaregivers = connections.filter((c) => c.status === "ACCEPTED" || c.status === "ACTIVE");
@@ -233,35 +250,50 @@ export default function FamilyPage() {
                   className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs"
                 >
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-slate-900">{inv.caregiver_email}</span>
-                      <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
-                        Pending
-                      </span>
+                      {inv.is_expired ? (
+                        <span className="text-[10px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-full">
+                          Expired (Resend required)
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                          Pending Password Creation
+                        </span>
+                      )}
                     </div>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      Relationship: {inv.relationship} • Invited {formatDate(inv.invited_at)}
+                      {inv.caregiver_name ? `${inv.caregiver_name} (${inv.relationship})` : `Relationship: ${inv.relationship}`} • Invited {formatDate(inv.invited_at)}
                     </p>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       onClick={() => handleCopyInviteLink(inv)}
-                      className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-[11px] font-semibold text-slate-700 flex items-center gap-1 shadow-2xs"
+                      className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-[11px] font-semibold text-slate-700 flex items-center gap-1 shadow-2xs cursor-pointer"
                     >
                       <Copy className="w-3.5 h-3.5 text-slate-500" />
                       <span>{copiedId === inv.id ? "Link Copied!" : "Copy Invite Link"}</span>
                     </button>
                     <button
+                      onClick={() => handleResendInvite(inv.id)}
+                      disabled={actionLoading}
+                      className="px-3 py-1.5 rounded-lg border border-teal-300 bg-teal-50 hover:bg-teal-100 text-[11px] font-semibold text-teal-800 flex items-center gap-1 shadow-2xs cursor-pointer"
+                      title="Generate new token and resend invitation email"
+                    >
+                      <RotateCw className="w-3.5 h-3.5 text-teal-700" />
+                      <span>Resend Email</span>
+                    </button>
+                    <button
                       onClick={() => handleAcceptInvite(inv.id)}
-                      className="px-3.5 py-1.5 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs"
+                      className="px-3 py-1.5 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs cursor-pointer"
                     >
                       <Check className="w-3.5 h-3.5" />
-                      <span>Accept Invite</span>
+                      <span>Direct Accept</span>
                     </button>
                     <button
                       onClick={() => handleRevoke(inv.id)}
-                      className="px-3 py-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-[11px] font-semibold text-rose-600"
+                      className="px-3 py-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-[11px] font-semibold text-rose-600 cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -306,37 +338,52 @@ export default function FamilyPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <h4 className="text-sm font-extrabold text-slate-900">
-                            {c.caregiver_name || c.caregiver_email}
+                            {c.is_caregiver_view
+                              ? (c.patient_name ? `Patient: ${c.patient_name}` : "Connected Patient")
+                              : (c.caregiver_name || c.caregiver_email)}
                           </h4>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                            Active
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            c.is_caregiver_view ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"
+                          }`}>
+                            {c.is_caregiver_view ? "Caregiver Access" : "Active"}
                           </span>
                         </div>
                         <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
                           <Mail className="w-3 h-3 text-slate-400" />
-                          {c.caregiver_email}
+                          {c.is_caregiver_view ? (c.patient_email || c.caregiver_email) : c.caregiver_email}
                         </p>
                         <span className="inline-block mt-1 text-[11px] font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded">
-                          Relationship: {c.relationship}
+                          {c.is_caregiver_view ? `Patient Role: ${c.relationship}` : `Relationship: ${c.relationship}`}
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => setEditingPermissionsConn(c)}
-                          className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600"
-                          title="Manage Permissions"
-                        >
-                          <Settings2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleRevoke(c.id)}
-                          className="p-1.5 rounded-lg border border-slate-200 hover:bg-rose-50 text-rose-500"
-                          title="Revoke Access"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                      {!c.is_caregiver_view ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setEditingPermissionsConn(c)}
+                            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600"
+                            title="Manage Permissions"
+                          >
+                            <Settings2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleRevoke(c.id)}
+                            className="p-1.5 rounded-lg border border-slate-200 hover:bg-rose-50 text-rose-500"
+                            title="Revoke Access"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <Link
+                            href="/dashboard"
+                            className="px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 text-xs font-semibold"
+                          >
+                            View Records
+                          </Link>
+                        </div>
+                      )}
                     </div>
 
                     {/* Permissions Badges */}

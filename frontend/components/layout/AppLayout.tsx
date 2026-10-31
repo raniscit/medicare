@@ -164,10 +164,18 @@ export function AppLayout({ children }: AppLayoutProps) {
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-xs font-semibold text-slate-700">Patient Active</span>
+              <span className="text-xs font-semibold text-slate-700">
+                {user?.role === "caregiver"
+                  ? (user.connected_patients && user.connected_patients.length > 0
+                      ? `Caregiver for ${user.connected_patients[0].patient_name}`
+                      : "Caregiver Active")
+                  : "Patient Active"}
+              </span>
             </div>
-            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-teal-100 text-teal-800">
-              Demo Profile
+            <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded ${
+              user?.role === "caregiver" ? "bg-amber-100 text-amber-800" : "bg-teal-100 text-teal-800"
+            }`}>
+              {user?.role === "caregiver" ? "Caregiver" : "Patient Profile"}
             </span>
           </div>
           <div className="flex items-center justify-between">
@@ -204,10 +212,19 @@ export function AppLayout({ children }: AppLayoutProps) {
               </span>
               <span>MediCare <span className="text-teal-600">AI</span></span>
             </div>
-            <div className="hidden sm:flex items-center gap-2 text-xs text-slate-700 font-medium">
-              <ShieldCheck className="w-4 h-4 text-teal-600" />
-              <span>HIPAA-Compliant Encrypted Medical Storage</span>
-            </div>
+            {user?.role === "caregiver" && user.connected_patients && user.connected_patients.length > 0 ? (
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 font-medium shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                <span>
+                  Viewing Patient: <strong className="text-slate-900">{user.connected_patients[0].patient_name}</strong> ({user.connected_patients[0].relationship})
+                </span>
+              </div>
+            ) : (
+              <div className="hidden sm:flex items-center gap-2 text-xs text-slate-700 font-medium">
+                <ShieldCheck className="w-4 h-4 text-teal-600" />
+                <span>HIPAA-Compliant Encrypted Medical Storage</span>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-3">

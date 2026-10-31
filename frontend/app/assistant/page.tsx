@@ -22,6 +22,7 @@ import {
 import { AppLayout } from "@/components/layout/AppLayout";
 import { api } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
+import { MessageAudioPlayer } from "@/components/MessageAudioPlayer";
 
 interface SourceCitation {
   document_id?: number;
@@ -65,6 +66,7 @@ function AssistantContent() {
   const [language, setLanguage] = useState<"en" | "hi">("en");
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [activePlayingId, setActivePlayingId] = useState<string | number | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -212,7 +214,7 @@ function AssistantContent() {
 
   return (
     <AppLayout>
-      <div className="h-[calc(100vh-6rem)] flex flex-col space-y-4">
+      <div className="h-[calc(100vh-8.5rem)] md:h-[calc(100vh-11rem)] flex flex-col space-y-3">
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:px-6 sm:py-4 rounded-2xl border border-slate-200 shadow-xs flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -370,7 +372,7 @@ function AssistantContent() {
                             : "bg-slate-50 text-slate-800 border border-slate-200/80 rounded-tl-none"
                           }`}
                       >
-                        <div className="whitespace-pre-wrap font-medium">{text}</div>
+                        <div className="whitespace-pre-wrap font-medium break-words">{text}</div>
 
                         {/* Citations / Sources for Assistant Responses */}
                         {!isUser && citations.length > 0 && (
@@ -397,6 +399,16 @@ function AssistantContent() {
                               ))}
                             </div>
                           </div>
+                        )}
+
+                        {/* Audio TTS Player for Assistant Responses */}
+                        {!isUser && text && (
+                          <MessageAudioPlayer
+                            text={text}
+                            messageId={msg.id || index}
+                            activePlayerId={activePlayingId}
+                            setActivePlayerId={setActivePlayingId}
+                          />
                         )}
                       </div>
 

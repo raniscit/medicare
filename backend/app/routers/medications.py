@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.entities import User, Medication, MedicationLog
@@ -8,18 +8,22 @@ from app.schemas.schemas import (
     MedicationCreate, MedicationUpdate, MedicationResponse,
     MedicationLogCreate, MedicationLogResponse
 )
-from app.utils.dependencies import get_current_active_user
+from app.utils.dependencies import get_current_active_user, get_effective_patient_context, check_patient_permission, check_patient_access
 
 router = APIRouter(prefix="/medications", tags=["Medications"])
 
 
 @router.get("", response_model=List[MedicationResponse])
 def list_medications(
+    request: Request,
     active_only: bool = False,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    query = db.query(Medication).filter(Medication.patient_id == current_user.id)
+    context = get_effective_patient_context(request, current_user, db)
+    if not check_patient_permission("can_view_medications", context):
+        return []
+    query = db.query(Medication).filter(Medication.patient_id == context["patient_id"])
     if active_only:
         query = query.filter(Medication.is_active == True)
     meds = query.order_by(Medication.created_at.desc()).all()

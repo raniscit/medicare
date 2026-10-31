@@ -45,11 +45,22 @@ class PatientProfileResponse(PatientProfileBase):
         from_attributes = True
 
 
+class ConnectedPatientInfo(BaseModel):
+    patient_id: int
+    patient_name: str
+    patient_email: str
+    relationship: str
+    permissions: Dict[str, Any] = {}
+    connection_id: int
+
+
 class UserResponse(UserBase):
     id: int
     is_active: bool
     created_at: datetime
     profile: Optional[PatientProfileResponse] = None
+    connected_patients: List[ConnectedPatientInfo] = []
+    active_patient_id: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -386,8 +397,10 @@ class AppointmentResponse(AppointmentBase):
 # --- Family & Caregiver Schemas ---
 class FamilyInviteCreate(BaseModel):
     caregiver_email: EmailStr
+    caregiver_name: Optional[str] = None
     relationship: str
     role: str = "CAREGIVER"  # PATIENT, CAREGIVER, READ_ONLY
+    redirect_url: Optional[str] = "/dashboard"
     permissions: Dict[str, bool] = {
         "can_view_reports": True,
         "can_view_medications": True,
@@ -402,15 +415,57 @@ class FamilyConnectionResponse(BaseModel):
     caregiver_email: str
     caregiver_id: Optional[int] = None
     caregiver_name: Optional[str] = None
+    patient_name: Optional[str] = None
+    patient_email: Optional[str] = None
+    is_caregiver_view: Optional[bool] = False
     relationship: str
     role: str
     status: str
     permissions_json: Dict[str, Any]
     invited_at: datetime
     accepted_at: Optional[datetime] = None
+    invitation_token: Optional[str] = None
+    invitation_url: Optional[str] = None
+    token_expires_at: Optional[datetime] = None
+    is_expired: Optional[bool] = False
+    redirect_url: Optional[str] = "/dashboard"
 
     class Config:
         from_attributes = True
+
+
+class InvitationValidateResponse(BaseModel):
+    valid: bool
+    connection_id: int
+    caregiver_email: str
+    caregiver_name: Optional[str] = None
+    patient_id: int
+    patient_name: str
+    relationship: str
+    role: str
+    permissions_json: Dict[str, Any] = {}
+    redirect_url: Optional[str] = "/dashboard"
+    invited_at: datetime
+    token_expires_at: Optional[datetime] = None
+    is_expired: bool = False
+    is_used: bool = False
+    message: Optional[str] = None
+
+
+class CreatePasswordFromInviteRequest(BaseModel):
+    token: str
+    password: str
+    full_name: Optional[str] = None
+
+
+class CreatePasswordFromInviteResponse(BaseModel):
+    status: str
+    message: str
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+    redirect_url: str = "/dashboard"
+
 
 
 class FamilyPermissionUpdate(BaseModel):

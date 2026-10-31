@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.config import settings
-from app.database import engine, Base, SessionLocal
+from app.database import engine, Base, SessionLocal, run_db_migrations
 from app.routers import (
     auth, documents, reports, health_tracking,
     medications, reminders, appointments, family, chat
@@ -24,6 +24,7 @@ async def lifespan(app: FastAPI):
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
+run_db_migrations(engine)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

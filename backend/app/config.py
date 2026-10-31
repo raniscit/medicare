@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     
+    # Frontend URL for invitation links and redirects
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    INVITATION_TOKEN_EXPIRE_HOURS: int = int(os.getenv("INVITATION_TOKEN_EXPIRE_HOURS", "72"))  # 72 hours
+    
     # Defaults to SQLite for seamless instant local runs, easily overridden with PostgreSQL
     DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{BACKEND_DIR / 'medicare.db'}")
     

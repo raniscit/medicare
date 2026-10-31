@@ -1,11 +1,11 @@
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.entities import User, Reminder
 from app.schemas.schemas import ReminderCreate, ReminderUpdate, ReminderResponse
-from app.utils.dependencies import get_current_active_user
+from app.utils.dependencies import get_current_active_user, get_effective_patient_context, check_patient_permission, check_patient_access
 from app.services.reminder_service import ReminderService
 from app.services.notification_service import NotificationService
 
@@ -14,11 +14,15 @@ router = APIRouter(prefix="/reminders", tags=["Reminders"])
 
 @router.get("", response_model=List[ReminderResponse])
 def list_reminders(
+    request: Request,
     status_filter: Optional[str] = None,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    query = db.query(Reminder).filter(Reminder.patient_id == current_user.id)
+    context = get_effective_patient_context(request, current_user, db)
+    if not check_patient_permission("can_view_reminders", context):
+        return []
+    query = db.query(Reminder).filter(Reminder.patient_id == context["patient_id"])
     if status_filter:
         query = query.filter(Reminder.status == status_filter.upper())
     return query.order_by(Reminder.reminder_time.asc()).all()
@@ -137,8 +141,12 @@ def delete_reminder(
 
 @router.get("/notifications")
 def get_notifications(
+    request: Request,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    return ReminderService.get_upcoming_notifications(db, current_user.id)
+    context = get_effective_patient_context(request, current_user, db)
+    if not check_patient_permission("can_view_reminders", context):
+        return []
+    return ReminderService.get_upcoming_notifications(db, context["patient_id"])
 

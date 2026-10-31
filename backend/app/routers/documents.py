@@ -2,7 +2,7 @@ import os
 import shutil
 from typing import List, Optional
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status, Query, Request
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.config import settings
@@ -11,7 +11,7 @@ from app.models.entities import (
     Medication, DocumentChunk, Reminder
 )
 from app.schemas.schemas import DocumentResponse, DocumentDetailResponse
-from app.utils.dependencies import get_current_active_user
+from app.utils.dependencies import get_current_active_user, get_effective_patient_context, check_patient_permission, check_patient_access
 from app.services.ocr_service import OCRService
 from app.services.medical_extractor import MedicalExtractor
 from app.services.report_summarizer import ReportSummarizer
@@ -212,12 +212,16 @@ async def upload_document(
 
 @router.get("", response_model=List[DocumentResponse])
 def list_documents(
+    request: Request,
     search: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    query = db.query(MedicalDocument).filter(MedicalDocument.patient_id == current_user.id)
+    context = get_effective_patient_context(request, current_user, db)
+    if not check_patient_permission("can_view_reports", context):
+        return []
+    query = db.query(MedicalDocument).filter(MedicalDocument.patient_id == context["patient_id"])
     
     if search:
         search_filter = f"%{search}%"
@@ -236,13 +240,17 @@ def list_documents(
 @router.get("/{document_id}", response_model=DocumentDetailResponse)
 def get_document(
     document_id: int,
+    request: Request,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    doc = db.query(MedicalDocument).filter(
-        MedicalDocument.id == document_id,
-        MedicalDocument.patient_id == current_user.id
-    ).first()
+    doc = db.query(MedicalDocument).filter(MedicalDocument.id == document_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Medical document not found.")
+    check_patient_access(doc.patient_id, current_user, db)
+    context = get_effective_patient_context(request, current_user, db)
+    if not check_patient_permission("can_view_reports", context):
+        raise HTTPException(status_code=403, detail="You do not have permission to view medical reports for this patient.")
     if not doc:
         raise HTTPException(status_code=404, detail="Medical document not found.")
     return doc

@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.entities import (
@@ -10,7 +10,7 @@ from app.schemas.schemas import (
     HealthOverviewResponse, ParameterTrendResponse,
     ReportComparisonResponse, TimelineEventResponse, ExtractedParameterResponse
 )
-from app.utils.dependencies import get_current_active_user
+from app.utils.dependencies import get_current_active_user, get_effective_patient_context, check_patient_permission, check_patient_access
 from app.services.health_comparator import HealthComparator
 
 router = APIRouter(prefix="/health", tags=["Health Tracking & Timeline"])
@@ -18,9 +18,77 @@ router = APIRouter(prefix="/health", tags=["Health Tracking & Timeline"])
 
 @router.get("/overview", response_model=HealthOverviewResponse)
 def get_health_overview(
+    request: Request,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
+    context = get_effective_patient_context(request, current_user, db)
+    patient_id = context["patient_id"]
+    can_reports = check_patient_permission("can_view_reports", context)
+    can_meds = check_patient_permission("can_view_medications", context)
+    can_rems = check_patient_permission("can_view_reminders", context)
+    can_trends = check_patient_permission("can_view_trends", context)
+
+    total_reports = db.query(MedicalDocument).filter(
+        MedicalDocument.patient_id == patient_id
+    ).count() if can_reports else 0
+
+    total_params = db.query(ExtractedMedicalParameter).filter(
+        ExtractedMedicalParameter.patient_id == patient_id
+    ).count() if can_reports else 0
+
+    active_meds = db.query(Medication).filter(
+        Medication.patient_id == patient_id,
+        Medication.is_active == True
+    ).count() if can_meds else 0
+
+    upcoming_apps = db.query(Appointment).filter(
+        Appointment.patient_id == patient_id,
+        Appointment.status == "SCHEDULED"
+    ).count() if can_rems else 0
+
+    latest_doc = db.query(MedicalDocument).filter(
+        MedicalDocument.patient_id == patient_id,
+        MedicalDocument.status == "COMPLETED"
+    ).order_by(MedicalDocument.upload_date.desc()).first() if can_reports else None
+
+    abnormal_params = []
+    if latest_doc and can_reports:
+        abnormal_params = db.query(ExtractedMedicalParameter).filter(
+            ExtractedMedicalParameter.document_id == latest_doc.id,
+            ExtractedMedicalParameter.status.in_(["LOW", "HIGH", "ABNORMAL"])
+        ).all()
+
+    ai_insights = []
+    if can_trends:
+        hba1c_trend = HealthComparator.get_parameter_trend(db, patient_id, "HbA1c")
+        if hba1c_trend["data_points"] and len(hba1c_trend["data_points"]) >= 2:
+            ai_insights.append(hba1c_trend["ai_insight"])
+        hb_trend = HealthComparator.get_parameter_trend(db, patient_id, "Hemoglobin")
+        if hb_trend["data_points"] and len(hb_trend["data_points"]) >= 2:
+            ai_insights.append(hb_trend["ai_insight"])
+
+    if not ai_insights:
+        if context.get("is_caregiver"):
+            patient_name = context.get("patient_user").full_name or "the patient"
+            ai_insights.append(f"Viewing caregiver access dashboard for {patient_name}. Authorized sections are displayed based on permissions granted.")
+        else:
+            ai_insights.append(
+                "Welcome to MediCare AI. Your health metrics are tracked across all uploaded documents. "
+                "Upload multiple lab reports over time to observe multi-month physiological trends."
+            )
+
+    return {
+        "total_reports": total_reports,
+        "total_parameters_tracked": total_params,
+        "abnormal_parameters_count": len(abnormal_params),
+        "upcoming_appointments_count": upcoming_apps,
+        "active_medications_count": active_meds,
+        "latest_abnormal_items": abnormal_params,
+        "ai_health_insights": ai_insights
+    }
+
+def _unused_overview():
     total_reports = db.query(MedicalDocument).filter(
         MedicalDocument.patient_id == current_user.id
     ).count()
@@ -84,10 +152,14 @@ def get_health_overview(
 @router.get("/trends/{standard_name}", response_model=ParameterTrendResponse)
 def get_parameter_trend(
     standard_name: str,
+    request: Request,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    trend = HealthComparator.get_parameter_trend(db, current_user.id, standard_name)
+    context = get_effective_patient_context(request, current_user, db)
+    if not check_patient_permission("can_view_trends", context):
+        return {"parameter_name": standard_name, "standard_name": standard_name, "data_points": [], "status_trend": "NO_PERM", "ai_insight": "No permission to view biomarker trends."}
+    trend = HealthComparator.get_parameter_trend(db, context["patient_id"], standard_name)
     return trend
 
 
@@ -109,9 +181,63 @@ def compare_reports(
 
 @router.get("/timeline", response_model=List[TimelineEventResponse])
 def get_health_timeline(
+    request: Request,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
+    context = get_effective_patient_context(request, current_user, db)
+    patient_id = context["patient_id"]
+    can_reports = check_patient_permission("can_view_reports", context)
+    can_meds = check_patient_permission("can_view_medications", context)
+    can_rems = check_patient_permission("can_view_reminders", context)
+
+    events = []
+    if can_reports:
+        docs = db.query(MedicalDocument).filter(MedicalDocument.patient_id == patient_id).all()
+        for d in docs:
+            events.append({
+                "id": f"doc_{d.id}",
+                "event_type": "REPORT",
+                "date": d.report_date or str(d.upload_date.date()),
+                "title": d.original_name,
+                "subtitle": f"{d.document_type} - {d.laboratory_name or 'Diagnostic Facility'}",
+                "description": f"Status: {d.status}. Processed for health tracking.",
+                "status_tag": d.status,
+                "reference_id": d.id
+            })
+
+    if can_rems:
+        apps = db.query(Appointment).filter(Appointment.patient_id == patient_id).all()
+        for a in apps:
+            events.append({
+                "id": f"app_{a.id}",
+                "event_type": "APPOINTMENT",
+                "date": str(a.appointment_date.date()),
+                "title": f"Consultation with {a.doctor_name}",
+                "subtitle": f"{a.specialty or 'Physician'} ({a.hospital_or_clinic or 'Clinic'})",
+                "description": a.reason or "Scheduled medical review.",
+                "status_tag": a.status,
+                "reference_id": a.id
+            })
+
+    if can_meds:
+        meds = db.query(Medication).filter(Medication.patient_id == patient_id).all()
+        for m in meds:
+            events.append({
+                "id": f"med_{m.id}",
+                "event_type": "MEDICATION_START",
+                "date": m.start_date or str(m.created_at.date()),
+                "title": f"Prescription: {m.medicine_name} {m.dosage}",
+                "subtitle": f"{m.frequency} ({m.timing_food or 'As advised'})",
+                "description": m.special_instructions or "Active medication regimen.",
+                "status_tag": "ACTIVE" if m.is_active else "DISCONTINUED",
+                "reference_id": m.id
+            })
+
+    events.sort(key=lambda x: x["date"], reverse=True)
+    return events
+
+def _unused_timeline():
     events = []
 
     # Documents
