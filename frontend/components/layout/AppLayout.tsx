@@ -193,10 +193,17 @@ export function AppLayout({ children }: AppLayoutProps) {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100"
+              className="md:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 cursor-pointer"
+              aria-label="Open mobile menu"
             >
               <Menu className="w-5 h-5" />
             </button>
+            <div className="flex md:hidden items-center gap-1.5 font-bold text-sm tracking-tight text-slate-900">
+              <span className="w-6 h-6 rounded-md bg-teal-600 text-white flex items-center justify-center text-xs">
+                <Activity className="w-3.5 h-3.5" />
+              </span>
+              <span>MediCare <span className="text-teal-600">AI</span></span>
+            </div>
             <div className="hidden sm:flex items-center gap-2 text-xs text-slate-700 font-medium">
               <ShieldCheck className="w-4 h-4 text-teal-600" />
               <span>HIPAA-Compliant Encrypted Medical Storage</span>

@@ -239,27 +239,27 @@ export default function SettingsPage() {
                 <span>Data Isolation</span>
               </div>
               <p className="text-[11px] text-slate-500">
-                Reports and vector embeddings are partitioned strictly per user account.
+                Your medical reports and clinical history are strictly private to your account.
               </p>
             </div>
 
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
               <div className="flex items-center gap-2 font-bold text-slate-900 mb-1">
                 <FileCheck className="w-3.5 h-3.5 text-teal-600" />
-                <span>Gemini API RAG</span>
+                <span>AI Document Intelligence</span>
               </div>
               <p className="text-[11px] text-slate-500">
-                Grounding answers directly in your authenticated documents only.
+                Generates insights grounded directly in your verified medical records.
               </p>
             </div>
 
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
               <div className="flex items-center gap-2 font-bold text-slate-900 mb-1">
                 <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />
-                <span>JWT Authentication</span>
+                <span>End-to-End Encryption</span>
               </div>
               <p className="text-[11px] text-slate-500">
-                Encrypted bearer session tokens with automatic expiration.
+                Secure authenticated sessions with automated privacy protection.
               </p>
             </div>
           </div>
